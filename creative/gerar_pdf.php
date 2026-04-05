@@ -92,16 +92,6 @@ $fullHtml = '<!DOCTYPE html>
 
   /* Layout System */
   .layout-classic { padding: var(--cv-margin, 40px); }
-  .layout-side-left, .layout-side-right { display: flex; flex-direction: row; width: 100%; min-height: 297mm; padding: 0 !important; }
-  .layout-side-left .sidebar-area { width: 32%; flex-shrink: 0; background: var(--prim); color: var(--sidebar-text-color, #ffffff); padding: var(--cv-margin, 40px); text-align: center; }
-  .layout-side-left .main-area { width: 68%; flex: 1; padding: var(--cv-margin, 40px); color: var(--txt-main); min-width: 0; }
-  .layout-side-right .sidebar-area { width: 32%; flex-shrink: 0; background: var(--sec); padding: var(--cv-margin, 40px); border-left: 2px solid var(--prim); }
-  .layout-side-right .main-area { width: 68%; flex: 1; padding: var(--cv-margin, 40px); color: var(--txt-main); min-width: 0; }
-  .layout-artistic { display: flex; flex-direction: row; width: 100%; min-height: 297mm; padding: 0 !important; }
-  .layout-artistic .side-strip { width: 60px; flex-shrink: 0; background: var(--prim); }
-  .layout-artistic .main-body { padding: var(--cv-margin, 40px); flex: 1; min-width: 0; }
-  .layout-artistic .header-art { padding-bottom: 20px; margin-bottom: var(--cv-spacing, 15px); }
-  .layout-artistic .big-letter { font-size: 6em; line-height: 0.8; font-weight: 900; color: var(--prim); margin-right: 10px; }
   .layout-geo { padding: 0 !important; }
   .layout-geo .header-bg { background: var(--prim); height: auto; min-height: 180px; clip-path: polygon(0 0, 100% 0, 100% 85%, 0 100%); color: var(--sidebar-text-color, #ffffff); padding: var(--cv-margin, 40px); padding-bottom: calc(var(--cv-margin, 40px) + 20px); }
   .layout-geo .main-content { padding: 0 var(--cv-margin, 40px) var(--cv-margin, 40px) var(--cv-margin, 40px); margin-top: 10px; }
@@ -110,11 +100,7 @@ $fullHtml = '<!DOCTYPE html>
   .layout-boxed .inner-border { border: 2px solid var(--prim); padding: var(--cv-margin, 40px); height: 100%; border-radius: 8px; }
 
   /* Sidebar text colors */
-  .layout-geo .header-bg .cv-name, .layout-geo .header-bg .cv-role, .layout-geo .header-bg .cv-contact,
-  .layout-side-left .sidebar-area .cv-name, .layout-side-left .sidebar-area .cv-role, .layout-side-left .sidebar-area .cv-contact,
-  .layout-side-left .sidebar-area .section-title, .layout-side-left .sidebar-area .item-desc, .layout-side-left .sidebar-area .item-title, .layout-side-left .sidebar-area .item-sub,
-  .layout-side-right .sidebar-area .cv-name, .layout-side-right .sidebar-area .cv-role, .layout-side-right .sidebar-area .cv-contact,
-  .layout-side-right .sidebar-area .section-title, .layout-side-right .sidebar-area .item-desc, .layout-side-right .sidebar-area .item-title, .layout-side-right .sidebar-area .item-sub { color: var(--sidebar-text-color, #ffffff) !important; }
+  .layout-geo .header-bg .cv-name, .layout-geo .header-bg .cv-role, .layout-geo .header-bg .cv-contact { color: var(--sidebar-text-color, #ffffff) !important; }
 
   .cv-photo { object-fit: cover; }
   img { max-width: 100%; height: auto; }
