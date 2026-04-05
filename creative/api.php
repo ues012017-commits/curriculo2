@@ -1629,7 +1629,7 @@ if ($acao === 'webhook_mp'){
     // Sanitizar $paymentId — deve ser apenas numérico
     $paymentId = preg_replace('/[^0-9]/', '', (string)$paymentId);
 
-    if (strpos($topic, 'payment') !== false && $paymentId) {
+    if (strpos($topic, 'payment') !== false && $paymentId && ctype_digit($paymentId)) {
         $mpToken = getConfig('mp_access_token', '', $pdo);
         if ($mpToken) {
             $ch = curl_init("https://api.mercadopago.com/v1/payments/$paymentId");
@@ -1643,7 +1643,7 @@ if ($acao === 'webhook_mp'){
                 $status = $payment['status'];
                 $liberarPending = getConfig('mp_liberar_pending', '0', $pdo);
 
-                if ($status === 'approved' || ($liberarPending == '1' && ($status === 'pending' || $status === 'in_process'))) {
+                if ($status === 'approved' || ($liberarPending === '1' && ($status === 'pending' || $status === 'in_process'))) {
 
                     $pedidoIdRaw = $payment['external_reference'] ?? '';
                     $pedidoIdWh = (int) str_replace("KNX_", "", $pedidoIdRaw);
