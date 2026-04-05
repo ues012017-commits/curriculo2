@@ -3,55 +3,73 @@
 // ================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Procura o formulário e o botão na sua tela
-    const formLogin = document.querySelector('form'); 
-    const inputSenha = document.querySelector('input[type="password"]');
+    // Captura os elementos pelo ID correto do index.html
+    const inputSenha = document.getElementById('lSenha');
+    const btnLogin = document.querySelector('#formLogin .btn-magic');
 
-    if (formLogin) {
-        formLogin.addEventListener('submit', async (e) => {
-            e.preventDefault(); // Impede a página de recarregar
+    if (!inputSenha || !btnLogin) return;
 
-            const senhaDigitada = inputSenha.value;
+    // Função principal de login
+    async function fazerLogin() {
+        const senhaDigitada = inputSenha.value.trim();
 
-            // Mostra um aviso de carregamento no botão (opcional)
-            const btnSubmit = formLogin.querySelector('button');
-            const textoOriginal = btnSubmit.innerText;
-            btnSubmit.innerText = 'Acessando...';
+        if (!senhaDigitada) {
+            alert('⚠️ Digite a senha de acesso.');
+            return;
+        }
 
-            try {
-                // Envia os dados para o nosso arquivo api.php
-                const requisicao = await fetch('api.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        acao: 'admin_login', // Esta é a chave que estava faltando!
-                        senha: senhaDigitada
-                    })
-                });
+        // Mostra um aviso de carregamento no botão
+        const textoOriginal = btnLogin.innerText;
+        btnLogin.innerText = 'Acessando...';
+        btnLogin.disabled = true;
 
-                const resposta = await requisicao.json();
+        try {
+            // Envia os dados para o nosso arquivo api.php
+            const requisicao = await fetch('api.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    acao: 'admin_login',
+                    senha: senhaDigitada
+                })
+            });
 
-                if (resposta.status === 'sucesso') {
-                    // Se a senha estiver correta, salva o token
-                    localStorage.setItem('admin_token', resposta.token);
-                    
-                    // Redireciona para a página de dentro do painel
-                    // (Altere 'painel.html' para o nome correto da sua página pós-login, se for diferente)
-                    window.location.href = 'painel.html'; 
-                } else {
-                    // Se a senha estiver errada, mostra o aviso
-                    alert('Credenciais inválidas. Tente novamente.');
-                    inputSenha.value = ''; // Limpa o campo
-                    btnSubmit.innerText = textoOriginal;
-                }
+            const resposta = await requisicao.json();
 
-            } catch (erro) {
-                console.error('Erro ao conectar com a API:', erro);
-                alert('Erro de conexão. Verifique o console.');
-                btnSubmit.innerText = textoOriginal;
+            if (resposta.status === 'sucesso') {
+                // Se a senha estiver correta, salva o token
+                localStorage.setItem('admin_token', resposta.token);
+
+                // Redireciona para a página do painel administrativo
+                window.location.href = 'admin.php';
+            } else {
+                // Se a senha estiver errada, mostra o aviso da API
+                alert(resposta.msg || 'Credenciais inválidas. Tente novamente.');
+                inputSenha.value = '';
             }
-        });
+
+        } catch (erro) {
+            console.error('Erro ao conectar com a API:', erro);
+            alert('Erro de conexão com o servidor. Verifique o console.');
+        } finally {
+            btnLogin.innerText = textoOriginal;
+            btnLogin.disabled = false;
+        }
     }
+
+    // Dispara o login ao clicar no botão
+    btnLogin.addEventListener('click', (e) => {
+        e.preventDefault();
+        fazerLogin();
+    });
+
+    // Dispara o login ao pressionar Enter no campo de senha
+    inputSenha.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            fazerLogin();
+        }
+    });
 });
