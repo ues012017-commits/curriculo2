@@ -856,6 +856,315 @@ if ($acao === 'admin_limpar_logs'){
 }
 
 // ================================================================
+// LOGIN USUARIO (validar)
+// ================================================================
+if ($acao === 'validar'){
+    $email = sanitizeEmail($request['email'] ?? '');
+    $senha = $request['senha'] ?? '';
+
+    if (!$email || !$senha) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Preencha e-mail e senha.']);
+    }
+
+    if (rateLimitExcedido($pdo, 'login_falha', 10, 15)) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Muitas tentativas. Aguarde 15 minutos.']);
+    }
+
+    try {
+        $stmt = $pdo->prepare("SELECT id, senha_hash, nome, cpf, creditos, plano, ativo FROM usuarios WHERE email = ?");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch();
+
+        if (!$user || !password_verify($senha, $user['senha_hash'])) {
+            registrarLog($pdo, 'warning', 'login_falha', "Tentativa de login falhou: $email");
+            jsonResponse(['status' => 'erro', 'msg' => 'E-mail ou senha incorretos.']);
+        }
+
+        if (!$user['ativo']) {
+            jsonResponse(['status' => 'erro', 'msg' => 'Conta desativada. Entre em contato com o suporte.']);
+        }
+
+        registrarLog($pdo, 'info', 'login_ok', "Login: $email", $user['id']);
+        jsonResponse([
+            'status'   => 'sucesso',
+            'id'       => $user['id'],
+            'nome'     => $user['nome'],
+            'cpf'      => $user['cpf'],
+            'creditos' => $user['creditos'],
+            'plano'    => $user['plano']
+        ]);
+    } catch (Exception $e) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Erro interno ao validar credenciais.']);
+    }
+}
+
+// ================================================================
+// REGISTRAR USUARIO (registrar)
+// ================================================================
+if ($acao === 'registrar'){
+    $email = sanitizeEmail($request['email'] ?? '');
+    $senha = $request['senha'] ?? '';
+    $nome  = sanitizeString($request['nome'] ?? '', 120);
+    $cpf   = sanitizeCPF($request['cpf'] ?? '');
+
+    if (!$email) {
+        jsonResponse(['status' => 'erro', 'msg' => 'E-mail inválido.']);
+    }
+    if (!validarSenha($senha)) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Senha deve ter pelo menos 6 caracteres.']);
+    }
+    if (!$nome) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Nome é obrigatório.']);
+    }
+
+    if (rateLimitExcedido($pdo, 'registro', 5, 60)) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Muitos registros recentes. Aguarde um pouco.']);
+    }
+
+    try {
+        $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE email = ?");
+        $stmt->execute([$email]);
+        if ($stmt->fetch()) {
+            jsonResponse(['status' => 'erro', 'msg' => 'Este e-mail já está cadastrado.']);
+        }
+
+        $senhaHash = password_hash($senha, PASSWORD_BCRYPT);
+
+        // Check if free credits are enabled
+        $creditosIniciais = 0;
+        try {
+            $stmtCfg = $pdo->prepare("SELECT valor FROM configuracoes WHERE chave = 'credito_gratis_ativo'");
+            $stmtCfg->execute();
+            $cfgAtivo = $stmtCfg->fetchColumn();
+            if ($cfgAtivo === '1') {
+                $stmtQtd = $pdo->prepare("SELECT valor FROM configuracoes WHERE chave = 'credito_gratis_qtd'");
+                $stmtQtd->execute();
+                $creditosIniciais = (int)($stmtQtd->fetchColumn() ?: 0);
+            }
+        } catch (Exception $e) {}
+
+        $stmt = $pdo->prepare("INSERT INTO usuarios (email, senha_hash, nome, cpf, creditos) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$email, $senhaHash, $nome, $cpf ?: null, $creditosIniciais]);
+
+        $userId = $pdo->lastInsertId();
+        registrarLog($pdo, 'info', 'registro', "Novo usuário: $email", (int)$userId);
+
+        jsonResponse(['status' => 'sucesso', 'msg' => 'Conta criada com sucesso!', 'id' => $userId]);
+    } catch (Exception $e) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Erro ao criar conta. Tente novamente.']);
+    }
+}
+
+// ================================================================
+// ATUALIZAR CPF
+// ================================================================
+if ($acao === 'atualizar_cpf'){
+    $email = sanitizeEmail($request['email'] ?? '');
+    $senha = $request['senha'] ?? '';
+    $cpf   = sanitizeCPF($request['cpf'] ?? '');
+
+    if (!$email || !$senha) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Credenciais inválidas.']);
+    }
+    if (strlen($cpf) !== 11) {
+        jsonResponse(['status' => 'erro', 'msg' => 'CPF inválido.']);
+    }
+
+    try {
+        $stmt = $pdo->prepare("SELECT id, senha_hash FROM usuarios WHERE email = ?");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch();
+
+        if (!$user || !password_verify($senha, $user['senha_hash'])) {
+            jsonResponse(['status' => 'erro', 'msg' => 'Credenciais inválidas.']);
+        }
+
+        $stmt = $pdo->prepare("UPDATE usuarios SET cpf = ? WHERE id = ?");
+        $stmt->execute([$cpf, $user['id']]);
+
+        jsonResponse(['status' => 'sucesso', 'msg' => 'CPF atualizado!']);
+    } catch (Exception $e) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Erro ao atualizar CPF.']);
+    }
+}
+
+// ================================================================
+// IA — PARSE RESUME (ai_parse_resume)
+// ================================================================
+if ($acao === 'ai_parse_resume'){
+    $email = sanitizeEmail($request['email'] ?? '');
+    $senha = $request['senha'] ?? '';
+
+    if (!$email || !$senha) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Faça login antes de usar a IA.']);
+    }
+
+    // Validate user
+    try {
+        $stmt = $pdo->prepare("SELECT id, senha_hash, creditos, ativo FROM usuarios WHERE email = ?");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch();
+
+        if (!$user || !password_verify($senha, $user['senha_hash'])) {
+            jsonResponse(['status' => 'erro', 'msg' => 'Credenciais inválidas.']);
+        }
+
+        if (!$user['ativo']) {
+            jsonResponse(['status' => 'erro', 'msg' => 'Conta desativada.']);
+        }
+    } catch (Exception $e) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Erro ao validar usuário.']);
+    }
+
+    // Check AI daily limits
+    try {
+        $limiteUsuario = 30;
+        $stmtLim = $pdo->prepare("SELECT valor FROM configuracoes WHERE chave = 'ia_limite_usuario_dia'");
+        $stmtLim->execute();
+        $valLim = $stmtLim->fetchColumn();
+        if ($valLim !== false) $limiteUsuario = (int)$valLim;
+
+        if ($limiteUsuario > 0) {
+            $stmtUso = $pdo->prepare("SELECT usos_hoje, ultima_data FROM ia_limites WHERE usuario_id = ?");
+            $stmtUso->execute([$user['id']]);
+            $uso = $stmtUso->fetch();
+            $hoje = date('Y-m-d');
+
+            if ($uso && $uso['ultima_data'] === $hoje && $uso['usos_hoje'] >= $limiteUsuario) {
+                jsonResponse(['status' => 'erro', 'msg' => "Limite diário de IA atingido ($limiteUsuario usos). Tente novamente amanhã."]);
+            }
+        }
+    } catch (Exception $e) {}
+
+    // Get LLM config
+    try {
+        $cfgKeys = ['llm_enabled', 'llm_provider', 'llm_model', 'llm_endpoint', 'llm_api_key'];
+        $placeholders = implode(',', array_fill(0, count($cfgKeys), '?'));
+        $stmtCfg = $pdo->prepare("SELECT chave, valor FROM configuracoes WHERE chave IN ($placeholders)");
+        $stmtCfg->execute($cfgKeys);
+        $llmCfg = [];
+        while ($row = $stmtCfg->fetch()) {
+            $llmCfg[$row['chave']] = $row['valor'];
+        }
+    } catch (Exception $e) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Erro ao carregar configuração da IA.']);
+    }
+
+    if (empty($llmCfg['llm_enabled']) || $llmCfg['llm_enabled'] !== '1') {
+        jsonResponse(['status' => 'erro', 'msg' => 'A funcionalidade de IA está desativada. Ative-a no painel admin (llm_enabled).']);
+    }
+
+    $apiKey = $llmCfg['llm_api_key'] ?? '';
+    if (!$apiKey) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Chave de API da IA não configurada. Configure no painel admin (llm_api_key).']);
+    }
+
+    $endpoint = $llmCfg['llm_endpoint'] ?? 'https://api.openai.com/v1/chat/completions';
+    $model    = $llmCfg['llm_model'] ?? 'gpt-4o-mini';
+    $provider = $llmCfg['llm_provider'] ?? 'openai';
+
+    // Build prompt
+    $texto  = $request['texto'] ?? '';
+    $images = $request['images'] ?? [];
+
+    $systemPrompt = 'Você é um assistente especializado em extrair dados de currículos. '
+        . 'Retorne APENAS um JSON válido (sem markdown, sem ```json) com a seguinte estrutura: '
+        . '{"nome":"","email":"","telefone":"","endereco_completo":"","linkedin":"","github":"","objetivo":"",'
+        . '"habilidades":[""],"idiomas":[{"idioma":"","nivel":""}],'
+        . '"experiencias":[{"cargo":"","empresa":"","periodo":"","descricao":""}],'
+        . '"formacao":[{"curso":"","instituicao":"","periodo":""}]}';
+
+    // Build messages based on provider
+    $messages = [['role' => 'system', 'content' => $systemPrompt]];
+
+    if (!empty($images)) {
+        // Vision mode — send images
+        $contentParts = [['type' => 'text', 'text' => 'Extraia todos os dados deste currículo em formato JSON:']];
+        foreach ($images as $img) {
+            $base64 = $img;
+            if (strpos($img, 'data:') !== 0) {
+                $base64 = 'data:image/png;base64,' . $img;
+            }
+            $contentParts[] = ['type' => 'image_url', 'image_url' => ['url' => $base64]];
+        }
+        $messages[] = ['role' => 'user', 'content' => $contentParts];
+    } else {
+        $messages[] = ['role' => 'user', 'content' => "Extraia os dados do seguinte currículo em formato JSON:\n\n" . $texto];
+    }
+
+    // Call LLM
+    $payload = json_encode([
+        'model'       => $model,
+        'messages'    => $messages,
+        'temperature' => 0.2,
+        'max_tokens'  => 3000
+    ], JSON_UNESCAPED_UNICODE);
+
+    $headers = [
+        'Content-Type: application/json',
+        'Authorization: Bearer ' . $apiKey
+    ];
+
+    // Support Gemini provider
+    if ($provider === 'gemini') {
+        $endpoint = str_contains($endpoint, '?') ? $endpoint : $endpoint . '?key=' . $apiKey;
+        $headers = ['Content-Type: application/json'];
+    }
+
+    $ch = curl_init($endpoint);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $payload,
+        CURLOPT_HTTPHEADER     => $headers,
+        CURLOPT_TIMEOUT        => 60,
+        CURLOPT_SSL_VERIFYPEER => true
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+
+    if ($curlError) {
+        registrarLog($pdo, 'error', 'ai_parse_resume', "cURL error: $curlError", $user['id']);
+        jsonResponse(['status' => 'erro', 'msg' => 'Erro de conexão com a IA. Tente novamente.']);
+    }
+
+    if ($httpCode !== 200) {
+        registrarLog($pdo, 'error', 'ai_parse_resume', "HTTP $httpCode: $response", $user['id']);
+        jsonResponse(['status' => 'erro', 'msg' => "Erro na API da IA (HTTP $httpCode). Verifique a chave e endpoint no admin."]);
+    }
+
+    $decoded = json_decode($response, true);
+    $content = $decoded['choices'][0]['message']['content'] ?? '';
+
+    if (!$content) {
+        jsonResponse(['status' => 'erro', 'msg' => 'A IA não retornou conteúdo.']);
+    }
+
+    // Clean markdown delimiters if present
+    $content = preg_replace('/^```json\s*/i', '', trim($content));
+    $content = preg_replace('/\s*```$/i', '', $content);
+
+    $result = json_decode($content, true);
+    if (!$result) {
+        jsonResponse(['status' => 'erro', 'msg' => 'A IA retornou dados em formato inválido.']);
+    }
+
+    // Update daily AI usage
+    try {
+        $hoje = date('Y-m-d');
+        $stmtUso = $pdo->prepare("INSERT INTO ia_limites (usuario_id, usos_hoje, ultima_data) VALUES (?, 1, ?) ON DUPLICATE KEY UPDATE usos_hoje = IF(ultima_data = VALUES(ultima_data), usos_hoje + 1, 1), ultima_data = VALUES(ultima_data)");
+        $stmtUso->execute([$user['id'], $hoje]);
+    } catch (Exception $e) {}
+
+    registrarLog($pdo, 'info', 'ai_parse_resume', "IA usada por $email", $user['id']);
+
+    jsonResponse(['status' => 'sucesso', 'result' => $result]);
+}
+
+// ================================================================
 // FALLBACK
 // ================================================================
 jsonResponse([
