@@ -450,6 +450,14 @@ input[type="range"]::-webkit-slider-thumb {
 }
 .s-tab.active { color: var(--brand); border-bottom-color: var(--brand); background: rgba(6,182,212,.04); }
 .store-body { padding: 30px; max-height: 70vh; overflow-y: auto; }
+.store-modal input, .store-modal select, .store-modal textarea {
+  background: #ffffff; color: #1c1917; border: 1.5px solid #d1d5db;
+}
+.store-modal input:focus, .store-modal select:focus, .store-modal textarea:focus {
+  border-color: #06b6d4; box-shadow: 0 0 0 3px rgba(6,182,212,.15);
+}
+.store-modal label { color: #374151; }
+.store-modal .store-body { color: #1c1917; }
 
 .plan-card {
   background: var(--ui-card); border: 1.5px solid var(--ui-border); border-radius: 14px;
@@ -1019,16 +1027,13 @@ input[type="range"]::-webkit-slider-thumb {
           <button class="btn" style="width:100%; padding:14px; border-radius:10px;" onclick="logout()">Sair da Conta</button>
         </div>
         <div id="authForms">
-          <div style="display:flex; background:var(--ui-bg); border-radius:12px; padding:6px; margin-bottom:20px;">
-            <div style="flex:1; text-align:center; padding:12px; cursor:pointer; border-radius:8px; font-size:13px; font-weight:800;" id="btnLog" class="active" onclick="toggleLogReg('login')">Fazer Login</div>
-            <div style="flex:1; text-align:center; padding:12px; cursor:pointer; border-radius:8px; font-size:13px; font-weight:800;" id="btnReg" onclick="toggleLogReg('reg')">Nova Conta</div>
-          </div>
           <div id="formLogin">
             <label class="no-top">E-mail de Acesso</label>
             <input id="lEmail" type="email" placeholder="seu@email.com">
             <label>Senha</label>
             <input id="lSenha" type="password" placeholder="******" onkeydown="if(event.key==='Enter')doAuth()">
-            <button class="btn-magic" style="padding: 16px; font-size:14px; margin-top:15px;" onclick="doAuth()">Entrar no Painel</button>
+            <button class="btn-magic" style="padding: 16px; font-size:14px; margin-top:15px;" onclick="doAuth()">Entrar</button>
+            <p style="text-align:center; margin-top:16px; font-size:13px; color:#374151;">Não tem uma conta? <a href="#" onclick="toggleLogReg('reg'); return false;" style="color:#06b6d4; font-weight:700; text-decoration:underline;">Cadastre-se aqui</a></p>
           </div>
           
           <div id="formReg" style="display:none;">
@@ -1041,6 +1046,7 @@ input[type="range"]::-webkit-slider-thumb {
             <label>CPF (Opcional)</label>
             <input id="rCpf" placeholder="000.000.000-00" maxlength="14" oninput="this.value=this.value.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2')">
             <button class="btn-magic" style="margin-top:20px; padding: 16px; font-size:14px;" onclick="doRegister()">Criar Minha Conta</button>
+            <p style="text-align:center; margin-top:16px; font-size:13px; color:#374151;">Já tem uma conta? <a href="#" onclick="toggleLogReg('login'); return false;" style="color:#06b6d4; font-weight:700; text-decoration:underline;">Faça login</a></p>
           </div>
         </div>
       </div>
@@ -1412,19 +1418,6 @@ input[type="range"]::-webkit-slider-thumb {
               </div>
             </div>
             <div style="text-align:center;font-size:9px;font-weight:700;color:#00d4ff;padding:3px;background:#030a1a;border-top:1px solid rgba(0,212,255,.3)">Konex Neon</div>
-          </div>
-
-          <!-- 10. Cyber Geométrico -->
-          <div class="layout-thumb" data-layout="layout-geo lay-13" data-style="var-4" data-bg="#b2ff00" data-sec="#06122d" data-font="#f8fafc" data-side="#f8fafc" onclick="selectLayoutVisual(this,true)" style="cursor:pointer;border:2px solid #e2e8f0;border-radius:10px;background:#06122d;overflow:hidden;transition:.2s;padding:0">
-            <div style="background:linear-gradient(135deg,#b2ff00,#00d4ff);height:28px;display:flex;align-items:center;padding:0 6px;gap:5px">
-              <div style="width:16px;height:16px;border-radius:50%;background:rgba(6,18,45,.3);border:1.5px solid rgba(6,18,45,.5)"></div>
-              <div><div style="height:4px;background:rgba(6,18,45,.7);border-radius:2px;width:55px;margin-bottom:2px"></div><div style="height:3px;background:rgba(6,18,45,.4);border-radius:2px;width:40px"></div></div>
-            </div>
-            <div style="padding:5px 6px;display:flex;gap:5px">
-              <div style="flex:1"><div style="height:2px;background:rgba(178,255,0,.4);border-radius:1px;margin-bottom:2px"></div><div style="height:2px;background:rgba(0,212,255,.3);border-radius:1px;width:70%"></div></div>
-              <div style="flex:1"><div style="height:2px;background:rgba(0,212,255,.3);border-radius:1px;margin-bottom:2px"></div><div style="height:2px;background:rgba(178,255,0,.2);border-radius:1px;width:80%"></div></div>
-            </div>
-            <div style="text-align:center;font-size:9px;font-weight:700;color:#b2ff00;padding:3px;background:#030a1a;border-top:1px solid rgba(178,255,0,.3)">Cyber Geométrico</div>
           </div>
 
           <!-- 11. Magenta Pop Artístico -->
@@ -2322,7 +2315,6 @@ const themes = [
   /* ── 10 NOVOS TEMAS — Combinações de 3 cores, fontes e pesos variados ── */
   { name: "Konex Neon", layout: "layout-side-left lay-12", style: "var-1", font: "'Roboto Mono', monospace", color: "#00d4ff", sec: "#01040a", fontCol: "#b2ff00", sideCol: "#b2ff00", accent: "#b2ff00" },
   { name: "Space Dark", layout: "layout-classic lay-8", style: "var-9", font: "'Montserrat', sans-serif", color: "#00d4ff", sec: "#030a1a", fontCol: "#f8fafc", sideCol: "#f8fafc", accent: "#06122d" },
-  { name: "Cyber Verde", layout: "layout-geo lay-13", style: "var-4", font: "'Oswald', sans-serif", color: "#b2ff00", sec: "#06122d", fontCol: "#f8fafc", sideCol: "#f8fafc", accent: "#00d4ff" },
   { name: "Oceanic Blue", layout: "layout-boxed lay-11", style: "var-5", font: "'Poppins', sans-serif", color: "#0369a1", sec: "#e0f2fe", fontCol: "#0f172a", sideCol: "#ffffff", accent: "#14b8a6" },
   { name: "Magenta Pop", layout: "layout-artistic lay-22", style: "var-2", font: "'Quicksand', sans-serif", color: "#d946ef", sec: "#1e1b4b", fontCol: "#f5f3ff", sideCol: "#fbbf24", accent: "#fbbf24" },
   { name: "Forest Deep", layout: "layout-side-right lay-14", style: "var-7", font: "'Lato', sans-serif", color: "#166534", sec: "#f0fdf4", fontCol: "#14532d", sideCol: "#14532d", accent: "#84cc16" },
@@ -2573,11 +2565,8 @@ function switchStoreTab(tab) {
 }
 
 function toggleLogReg(view) {
-  $('formLogin').style.display = view === 'login' ? 'block' : 'none'; $('formReg').style.display = view === 'reg' ? 'block' : 'none'; 
-  if(view === 'login' || view === 'reg') {
-      $('btnLog').style.background = view === 'login' ? 'var(--brand-grd)' : 'transparent'; $('btnLog').style.color = view === 'login' ? '#fff' : 'var(--ui-txt)';
-      $('btnReg').style.background = view === 'reg' ? 'var(--brand-grd)' : 'transparent'; $('btnReg').style.color = view === 'reg' ? '#fff' : 'var(--ui-txt)';
-  }
+  $('formLogin').style.display = view === 'login' ? 'block' : 'none';
+  $('formReg').style.display = view === 'reg' ? 'block' : 'none';
 }
 
 async function doAuth() {
@@ -2640,7 +2629,7 @@ async function updateCPF() {
     try {
         const r = await fetch(API_URL, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ acao: 'atualizar_cpf', user_id: userId, cpf: cpf })
+            body: JSON.stringify({ acao: 'atualizar_cpf', email: userEmail, senha: userSenha, cpf: cpf })
         });
         const j = await r.json();
         if(j.status === 'sucesso') { 
