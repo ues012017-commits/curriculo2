@@ -14,10 +14,9 @@
  * }
  */
 
-header('Content-Type: application/json');
-
 // Only accept POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Content-Type: application/json');
     http_response_code(405);
     echo json_encode(['status' => 'erro', 'msg' => 'Método não permitido.']);
     exit;
@@ -26,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $input = json_decode(file_get_contents('php://input'), true);
 
 if (!$input || empty($input['html'])) {
+    header('Content-Type: application/json');
     http_response_code(400);
     echo json_encode(['status' => 'erro', 'msg' => 'HTML do currículo não fornecido.']);
     exit;
@@ -34,6 +34,14 @@ if (!$input || empty($input['html'])) {
 $htmlContent = $input['html'];
 $cssVars = $input['cssVars'] ?? [];
 $nome = preg_replace('/[^a-zA-Z0-9_\- ]/', '', $input['nome'] ?? 'Curriculo');
+
+// Sanitize HTML content: strip dangerous tags (script, iframe, etc.) while preserving layout tags
+$allowedTags = '<div><span><p><br><img><strong><b><em><i><u><h1><h2><h3><h4><h5><h6><ul><ol><li><table><tr><td><th><thead><tbody><a><hr><section><article><header><footer><nav><main>';
+$htmlContent = strip_tags($htmlContent, $allowedTags);
+// Remove any event handler attributes (onclick, onerror, onload, etc.)
+$htmlContent = preg_replace('/\s+on\w+\s*=\s*["\'][^"\']*["\']/i', '', $htmlContent);
+// Remove javascript: URLs
+$htmlContent = preg_replace('/href\s*=\s*["\']javascript:[^"\']*["\']/i', '', $htmlContent);
 
 // Build CSS variables string for the document
 $cssVarStr = '';
@@ -86,6 +94,7 @@ if (class_exists('Dompdf\Dompdf') || file_exists(__DIR__ . '/vendor/autoload.php
         echo $dompdf->output();
         exit;
     } catch (Exception $e) {
+        header('Content-Type: application/json');
         http_response_code(500);
         echo json_encode(['status' => 'erro', 'msg' => 'Erro ao gerar PDF: ' . $e->getMessage()]);
         exit;
@@ -93,6 +102,7 @@ if (class_exists('Dompdf\Dompdf') || file_exists(__DIR__ . '/vendor/autoload.php
 }
 
 // Option 2: If no PDF library is available, return error
+header('Content-Type: application/json');
 http_response_code(501);
 echo json_encode([
     'status' => 'erro',
