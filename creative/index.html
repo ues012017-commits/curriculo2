@@ -3325,14 +3325,14 @@ async function exportPDFViaBackend() {
     // Collect CSS variables as inline styles context
     const computedStyle = getComputedStyle(document.documentElement);
     // Also read resolved --prim/--sec from the cv-content element (theme + palette-custom)
-    const cvEl = $('cvContentMaster');
-    const cvStyle = cvEl ? getComputedStyle(cvEl) : computedStyle;
+    const cvContentElement = $('cvContentMaster');
+    const cvContentStyle = cvContentElement ? getComputedStyle(cvContentElement) : computedStyle;
     const cssVars = {
       '--user-font': computedStyle.getPropertyValue('--user-font').trim(),
       '--user-color': computedStyle.getPropertyValue('--user-color').trim(),
       '--secondary': computedStyle.getPropertyValue('--secondary').trim(),
       '--user-font-color': computedStyle.getPropertyValue('--user-font-color').trim(),
-      '--sidebar-text-color': cvStyle.getPropertyValue('--sidebar-text-color').trim(),
+      '--sidebar-text-color': cvContentStyle.getPropertyValue('--sidebar-text-color').trim(),
       '--cv-margin': computedStyle.getPropertyValue('--cv-margin').trim(),
       '--cv-spacing': computedStyle.getPropertyValue('--cv-spacing').trim(),
       '--title-scale': computedStyle.getPropertyValue('--title-scale').trim(),
