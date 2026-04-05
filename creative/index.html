@@ -538,6 +538,48 @@ input[type="range"]::-webkit-slider-thumb {
 }
 @media (prefers-reduced-motion: reduce) { .btn-download { animation: none; } }
 
+/* ── SUCCESS BANNER CONTRAST FIX ── */
+.cv-ready-banner {
+  background: linear-gradient(135deg, rgba(245,158,11,.12), rgba(234,88,12,.08));
+  border: 1.5px solid rgba(180,83,9,.4);
+  border-radius: 12px; padding: 12px 18px;
+  text-align: center; max-width: 360px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MODULAR THEME SYSTEM — 10 Premium CSS Themes
+   Apply any .theme-* class to the .cv-content wrapper
+═══════════════════════════════════════════════════════════ */
+.theme-ocean { --prim: #0369a1; --sec: #e0f2fe; --txt-h: #0369a1; --txt-main: #0c4a6e; --sidebar-text-color: #f0f9ff; }
+.theme-ocean .sidebar-area { background: #0369a1; }
+
+.theme-dark { --prim: #1e293b; --sec: #0f172a; --txt-h: #e2e8f0; --txt-main: #cbd5e1; --sidebar-text-color: #94a3b8; }
+.theme-dark .sidebar-area { background: #0f172a; }
+
+.theme-forest { --prim: #166534; --sec: #f0fdf4; --txt-h: #166534; --txt-main: #14532d; --sidebar-text-color: #ecfdf5; }
+.theme-forest .sidebar-area { background: #166534; }
+
+.theme-ruby { --prim: #9f1239; --sec: #fff1f2; --txt-h: #9f1239; --txt-main: #4c0519; --sidebar-text-color: #ffe4e6; }
+.theme-ruby .sidebar-area { background: #9f1239; }
+
+.theme-sunset { --prim: #ea580c; --sec: #fff7ed; --txt-h: #c2410c; --txt-main: #431407; --sidebar-text-color: #ffedd5; }
+.theme-sunset .sidebar-area { background: #ea580c; }
+
+.theme-royal { --prim: #4338ca; --sec: #eef2ff; --txt-h: #4338ca; --txt-main: #312e81; --sidebar-text-color: #e0e7ff; }
+.theme-royal .sidebar-area { background: #4338ca; }
+
+.theme-gold { --prim: #a16207; --sec: #fefce8; --txt-h: #854d0e; --txt-main: #422006; --sidebar-text-color: #fef9c3; }
+.theme-gold .sidebar-area { background: #a16207; }
+
+.theme-neon { --prim: #00d4ff; --sec: #020617; --txt-h: #00d4ff; --txt-main: #e2e8f0; --sidebar-text-color: #bef264; }
+.theme-neon .sidebar-area { background: #020617; }
+
+.theme-lavender { --prim: #7c3aed; --sec: #f5f3ff; --txt-h: #6d28d9; --txt-main: #4c1d95; --sidebar-text-color: #ede9fe; }
+.theme-lavender .sidebar-area { background: #7c3aed; }
+
+.theme-corporate { --prim: #1e3a8a; --sec: #eff6ff; --txt-h: #1e3a8a; --txt-main: #1e293b; --sidebar-text-color: #dbeafe; }
+.theme-corporate .sidebar-area { background: #1e3a8a; }
+
 .preview-canvas {
   flex: 1; padding: 40px 20px;
   display: flex; justify-content: center; align-items: flex-start;
@@ -738,6 +780,38 @@ input[type="range"]::-webkit-slider-thumb {
     <div class="btn-group">
       <button class="btn" onclick="closeModal('imageModal')">Cancelar</button>
       <button class="btn active" onclick="saveCrop()">✅ Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div id="gateModal" class="modal-overlay">
+  <div class="modal-content" style="max-width:480px; text-align:center;">
+    <div class="modal-title" style="justify-content:center;position:relative;">
+      🔒 Crie sua conta para baixar
+      <button style="background:none;border:none;color:var(--ui-txt);font-size:22px;cursor:pointer;position:absolute;right:0;top:0;" onclick="closeModal('gateModal')">✕</button>
+    </div>
+    <div style="font-size:48px;margin:10px 0;">📄</div>
+    <p style="font-size:14px;color:var(--ui-muted);line-height:1.7;margin-bottom:20px;">
+      Para baixar seu currículo em PDF de alta qualidade, você precisa ter uma conta e créditos disponíveis.
+    </p>
+    <p style="font-size:13px;font-weight:700;color:var(--brand);margin-bottom:20px;">
+      ✨ Crie sua conta e adquira créditos na loja para desbloquear o download.
+    </p>
+    <button class="btn-magic" style="width:100%;padding:14px;font-size:15px;font-weight:800;" onclick="closeModal('gateModal');openStore();">🛒 Ir para a Loja</button>
+    <button class="btn" style="width:100%;margin-top:10px;" onclick="closeModal('gateModal')">Voltar</button>
+  </div>
+</div>
+
+<div id="autoSaveRestoreModal" class="modal-overlay">
+  <div class="modal-content" style="max-width:450px; text-align:center;">
+    <div class="modal-title" style="justify-content:center;">💾 Rascunho Encontrado</div>
+    <div style="font-size:48px;margin:10px 0;">📝</div>
+    <p style="font-size:14px;color:var(--ui-muted);line-height:1.7;margin-bottom:20px;">
+      Encontramos um rascunho salvo automaticamente. Deseja restaurar seus dados?
+    </p>
+    <div class="btn-group">
+      <button class="btn" onclick="dismissAutoSaveRestore()">Não, começar novo</button>
+      <button class="btn active" onclick="acceptAutoSaveRestore()">✅ Restaurar</button>
     </div>
   </div>
 </div>
@@ -1163,7 +1237,7 @@ input[type="range"]::-webkit-slider-thumb {
         <div class="step-pane-title">🎨 Personalização</div>
         <div id="designAutoMsg" style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:12px;padding:14px 16px;margin-bottom:18px;text-align:center;">
           <div style="font-size:13px;font-weight:700;color:#10b981;">✅ Layout e cores aplicados automaticamente</div>
-          <div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:4px;">Você pode personalizar abaixo ou manter o padrão.</div>
+          <div style="font-size:11px;color:#78716c;margin-top:4px;">Você pode personalizar abaixo ou manter o padrão.</div>
         </div>
 
         <button class="btn-style-gallery" onclick="openStyleGallery()">
@@ -1674,9 +1748,9 @@ input[type="range"]::-webkit-slider-thumb {
     </div>
     
     <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
-      <div id="cvReadyBanner" style="background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(239,68,68,.1));border:1.5px solid rgba(245,158,11,.4);border-radius:12px;padding:12px 18px;text-align:center;max-width:360px;">
-        <div style="font-size:15px;font-weight:900;color:#fbbf24;">Seu currículo está pronto 🔥</div>
-        <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:4px;">Desbloqueie por apenas R$9,90 • Pagamento único</div>
+      <div id="cvReadyBanner" class="cv-ready-banner">
+        <div style="font-size:15px;font-weight:900;color:#b45309;">Seu currículo está pronto 🔥</div>
+        <div style="font-size:12px;color:#78716c;margin-top:4px;">Desbloqueie por apenas R$9,90 • Pagamento único</div>
       </div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;">
         <button class="preview-btn" style="background:var(--ui-bg); border-color:var(--ui-border); font-weight:900; color:#ffffff; padding: 12px 20px;" onclick="exportPDFPreviewWatermark()">📥 BAIXAR PRÉVIA GRÁTIS</button>
@@ -2283,6 +2357,20 @@ function applyThemeVariant(index) {
   enforceReadableColors(); updateStyles();
 }
 
+// ── APPLY CSS THEME CLASS (modular system) ──
+const THEME_CLASSES = ['theme-ocean','theme-dark','theme-forest','theme-ruby','theme-sunset','theme-royal','theme-gold','theme-neon','theme-lavender','theme-corporate'];
+function applyThemeClass(themeClass) {
+  const master = $('cvContentMaster');
+  if (!master) return;
+  // Remove any existing theme classes
+  THEME_CLASSES.forEach(cls => master.classList.remove(cls));
+  // Apply new theme class
+  if (themeClass && THEME_CLASSES.includes(themeClass)) {
+    master.classList.add(themeClass);
+  }
+  render(); saveData();
+}
+
 // ── STYLE GALLERY (replaces roulette) ──
 const SG_CATEGORIES = [
   { id: 'all',        label: '🎨 Todos' },
@@ -2713,7 +2801,35 @@ async function syncLicenseFromAPI() {
 }
 
 function setPhotoPos(side) { photoPos = side; $('btnPosLeft').className = side === 'left' ? 'btn active' : 'btn'; $('btnPosRight').className = side === 'right' ? 'btn active' : 'btn'; render(); saveData(); }
-function initCropper(e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = evt => { $('imageToCrop').src = evt.target.result; $('imageModal').classList.add('open'); if (cropper) cropper.destroy(); cropper = new Cropper($('imageToCrop'), { aspectRatio: 1, viewMode: 1 }); }; reader.readAsDataURL(file); }
+function initCropper(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => {
+    // Compress image via Canvas API before loading into cropper
+    const img = new Image();
+    img.onload = () => {
+      const MAX_DIM = 1200;
+      let w = img.width, h = img.height;
+      if (w > MAX_DIM || h > MAX_DIM) {
+        const ratio = Math.min(MAX_DIM / w, MAX_DIM / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const compressed = canvas.toDataURL('image/jpeg', 0.8);
+      $('imageToCrop').src = compressed;
+      $('imageModal').classList.add('open');
+      if (cropper) cropper.destroy();
+      cropper = new Cropper($('imageToCrop'), { aspectRatio: 1, viewMode: 1 });
+    };
+    img.src = evt.target.result;
+  };
+  reader.readAsDataURL(file);
+}
 function saveCrop() { if (cropper) { profilePic = cropper.getCroppedCanvas({ width: 300, height: 300 }).toDataURL(); closeModal('imageModal'); render(); saveData(); } }
 function removePhoto() { profilePic = ''; $('inFoto').value=''; render(); saveData(); }
 
@@ -2728,7 +2844,7 @@ function renderLists() {
 
 function updateStyles() {
   enforceReadableColors();
-  const r = document.querySelector(':root');
+  const r = document.documentElement;
   r.style.setProperty('--user-font', $('selFontFamily').value);
   r.style.setProperty('--user-color', $('inpColor').value);
   r.style.setProperty('--secondary', $('inpSecColor').value);
@@ -2738,6 +2854,12 @@ function updateStyles() {
   r.style.setProperty('--cv-spacing', $('rngSpacing').value + 'px');
   r.style.setProperty('--title-scale', $('rngTitle').value);
   r.style.setProperty('--text-scale', $('rngText').value);
+  // Also apply directly to cvContentMaster for reliability
+  const master = $('cvContentMaster');
+  if (master) {
+    master.style.setProperty('--cv-margin', $('rngMargin').value + 'px');
+    master.style.setProperty('--cv-spacing', $('rngSpacing').value + 'px');
+  }
   render(); saveData();
 }
 
@@ -2900,7 +3022,9 @@ function render() {
   const masterContainer = $('cvContentMaster'); 
   let layoutClass = $('selLayout').value; const varClass = $('selStyle').value;
   if (photoPos === 'right') layoutClass += ' pos-right';
-  masterContainer.className = `cv-content ${layoutClass} palette-custom ${varClass}`;
+  // Preserve any active theme class
+  const activeTheme = THEME_CLASSES.find(cls => masterContainer.classList.contains(cls)) || '';
+  masterContainer.className = `cv-content ${layoutClass} palette-custom ${varClass} ${activeTheme}`.trim();
 
   const nome = ($('inNome').value || '').toUpperCase();
   const objHTML = $('inObj').value ? `<div class="cv-role" style="text-transform:none;">${$('inObj').value}</div>` : ``;
@@ -3142,11 +3266,16 @@ async function exportPDFPreviewWatermark() {
 }
 
 async function exportPDFOfficialProtected() {
-  if (!userEmail) { alert('🔒 Faça login e adquira créditos para baixar o PDF Oficial limpo.'); openStore(); return; }
+  // Gate: check for access token / credits
+  if (!userEmail) {
+    $('gateModal').classList.add('open');
+    return;
+  }
   if (totalDownloadsApi <= 0) {
     const btn = $('btnOfficialDownload'); if (btn) btn.classList.add('btn-download-locked');
-    alert('🔒 Você precisa de créditos para baixar o PDF Oficial limpo. Redirecionando para a Loja...');
-    setTimeout(() => { openStore(); if (btn) btn.classList.remove('btn-download-locked'); }, 1500); return;
+    $('gateModal').classList.add('open');
+    setTimeout(() => { if (btn) btn.classList.remove('btn-download-locked'); }, 1500);
+    return;
   }
   if (!confirm(`⚠️ Baixar o PDF OFICIAL consumirá 1 crédito.\nSeu saldo atual é: ${totalDownloadsApi}\n\nDeseja continuar?`)) return;
   try {
@@ -3159,10 +3288,78 @@ async function exportPDFOfficialProtected() {
     if (j.status === 'sucesso') { 
         totalDownloadsApi = parseInt(j.creditos); 
         updateSidebarCredit(); 
-        await generateVisualPDF(`Curriculo_Oficial_${$('inNome').value.replace(/[^a-zA-Z0-9]/g,'_') || 'Konex'}.pdf`); 
+        // Try backend PDF generation first, fallback to client-side
+        const backendOk = await exportPDFViaBackend();
+        if (!backendOk) {
+          await generateVisualPDF(`Curriculo_Oficial_${$('inNome').value.replace(/[^a-zA-Z0-9]/g,'_') || 'Konex'}.pdf`);
+        }
     } 
     else { alert('⚠️ Falha ao validar o seu crédito: ' + j.msg); }
   } catch(e) { alert('⚠️ Erro de servidor ao gerar PDF.'); }
+}
+
+// Backend PDF generation via fetch POST to gerar_pdf.php
+async function exportPDFViaBackend() {
+  const overlay = $('exportOverlay');
+  try {
+    overlay.style.display = 'flex';
+    $('exportTitleText').innerText = 'Gerando PDF no servidor...';
+
+    // Collect compiled HTML from the master CV container
+    const masterClone = $('hiddenPaper').cloneNode(true);
+    // Remove protection overlays from clone
+    masterClone.querySelectorAll('.kc-protect-overlay, .kc-cut-line, .kc-cut-blank').forEach(el => el.remove());
+    const htmlContent = masterClone.innerHTML;
+
+    // Collect CSS variables as inline styles context
+    const computedStyle = getComputedStyle(document.documentElement);
+    const cssVars = {
+      '--user-font': computedStyle.getPropertyValue('--user-font').trim(),
+      '--user-color': computedStyle.getPropertyValue('--user-color').trim(),
+      '--secondary': computedStyle.getPropertyValue('--secondary').trim(),
+      '--user-font-color': computedStyle.getPropertyValue('--user-font-color').trim(),
+      '--sidebar-text-color': computedStyle.getPropertyValue('--sidebar-text-color').trim(),
+      '--cv-margin': computedStyle.getPropertyValue('--cv-margin').trim(),
+      '--cv-spacing': computedStyle.getPropertyValue('--cv-spacing').trim(),
+      '--title-scale': computedStyle.getPropertyValue('--title-scale').trim(),
+      '--text-scale': computedStyle.getPropertyValue('--text-scale').trim(),
+    };
+
+    const response = await fetch('gerar_pdf.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        html: htmlContent,
+        cssVars: cssVars,
+        email: userEmail,
+        nome: $('inNome').value || 'Curriculo',
+      })
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const blob = await response.blob();
+    if (blob.type !== 'application/pdf') {
+      return false;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Curriculo_Oficial_${$('inNome').value.replace(/[^a-zA-Z0-9]/g, '_') || 'Konex'}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    return true;
+  } catch (e) {
+    return false;
+  } finally {
+    overlay.style.display = 'none';
+    $('exportTitleText').innerText = 'Renderizando PDF...';
+  }
 }
 
 function updateDownloadButtonState() {
@@ -3221,7 +3418,67 @@ function autoZoom() {
 window.addEventListener('resize', autoZoom);
 try { const __sc = $('canvasScroll'); if (__sc) __sc.addEventListener('scroll', () => { updatePageIndicator(); }, {passive:true}); } catch(e) {}
 
-loadData(); autoZoom(); renderThemeGrid();
+// ── AUTO-SAVE (every 10 seconds) ──
+let autoSaveIntervalId = null;
+const AUTOSAVE_KEY = 'konexAutoSave_draft';
+
+function startAutoSave() {
+  if (autoSaveIntervalId) clearInterval(autoSaveIntervalId);
+  autoSaveIntervalId = setInterval(() => {
+    try {
+      const payload = {
+        nome: $('inNome').value, cel: $('inCel').value, recado: $('inRecado').value,
+        nasc: $('inNasc').value, email: $('inEmail').value, rua: $('inRua').value,
+        link: $('inLink').value, cnh: $('inCNH').value, cnhCat: $('selCNHCat').value,
+        estadoCivil: $('inEstadoCivil').value, obj: $('inObj').value, res: $('inRes').value,
+        skills: $('inSkills').value, idiomas: $('inIdiomas').value, infos: $('inInfos').value,
+        layout: $('selLayout').value, style: $('selStyle').value,
+        margin: $('rngMargin').value, spacing: $('rngSpacing').value,
+        titleScale: $('rngTitle').value, textScale: $('rngText').value,
+        exp: data.exp, edu: data.edu, pic: profilePic, photoPos: photoPos,
+        fontFamily: $('selFontFamily').value, userColor: $('inpColor').value,
+        secColor: $('inpSecColor').value, userFontColor: $('inpFontColor').value,
+        sidebarColor: $('inpSidebarColor').value, currentStep: currentStep,
+        photoShape: $('selPhotoShape') ? $('selPhotoShape').value : '50%',
+        photoSize: $('rngPhotoSize') ? $('rngPhotoSize').value : 90,
+        savedAt: new Date().toISOString()
+      };
+      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(payload));
+    } catch (e) { /* silently fail */ }
+  }, 10000);
+}
+
+function checkAutoSaveRestore() {
+  const draft = localStorage.getItem(AUTOSAVE_KEY);
+  const main = localStorage.getItem('konexData_FINAL3');
+  if (draft && !main) {
+    // Main data was cleared but auto-save draft exists — offer restore
+    $('autoSaveRestoreModal').classList.add('open');
+    return true;
+  }
+  return false;
+}
+
+function acceptAutoSaveRestore() {
+  const draft = localStorage.getItem(AUTOSAVE_KEY);
+  if (draft) {
+    localStorage.setItem('konexData_FINAL3', draft);
+    localStorage.removeItem(AUTOSAVE_KEY);
+  }
+  closeModal('autoSaveRestoreModal');
+  loadData(); autoZoom(); renderThemeGrid();
+}
+
+function dismissAutoSaveRestore() {
+  localStorage.removeItem(AUTOSAVE_KEY);
+  closeModal('autoSaveRestoreModal');
+}
+
+// Initialize
+if (!checkAutoSaveRestore()) {
+  loadData(); autoZoom(); renderThemeGrid();
+}
+startAutoSave();
 
 // Load public config (video URL etc.) from admin settings
 (async function loadPublicConfig() {
