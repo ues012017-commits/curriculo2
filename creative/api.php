@@ -1031,7 +1031,8 @@ if ($acao === 'ai_parse_resume'){
             $hoje = date('Y-m-d');
 
             if ($uso && $uso['ultima_data'] === $hoje && $uso['usos_hoje'] >= $limiteUsuario) {
-                jsonResponse(['status' => 'erro', 'msg' => "Limite diário de IA atingido ($limiteUsuario usos). Tente novamente amanhã."]);
+                $usoStr = $limiteUsuario === 1 ? 'uso' : 'usos';
+                jsonResponse(['status' => 'erro', 'msg' => "Limite diário de IA atingido ($limiteUsuario $usoStr). Tente novamente amanhã."]);
             }
         }
     } catch (Exception $e) {}
