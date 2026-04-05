@@ -2248,7 +2248,7 @@ async function carregarPlanosLoja() {
         const r = await fetch(API_URL, { 
             method: 'POST', 
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ acao: 'admin_get_configs' }) 
+            body: JSON.stringify({ acao: 'get_store_config' }) 
         });
         const j = await r.json();
         

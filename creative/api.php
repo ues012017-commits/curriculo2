@@ -79,11 +79,49 @@ if (!$acao){
 // CONFIG PUBLICA
 // ================================================================
 if ($acao === 'get_public_config'){
-    jsonResponse([
+    $result = [
         'status' => 'sucesso',
         'msg' => 'API OK',
         'banco' => 'conectado'
-    ]);
+    ];
+
+    // Include public config values the frontend needs
+    try {
+        $publicKeys = ['loja_video_url', 'site_nome', 'whatsapp_suporte'];
+        $placeholders = implode(',', array_fill(0, count($publicKeys), '?'));
+        $stmt = $pdo->prepare("SELECT chave, valor FROM configuracoes WHERE chave IN ($placeholders)");
+        $stmt->execute($publicKeys);
+        while ($row = $stmt->fetch()) {
+            $result[$row['chave']] = $row['valor'];
+        }
+    } catch(Exception $e) {}
+
+    jsonResponse($result);
+}
+
+// ================================================================
+// CONFIG PUBLICA DA LOJA (planos, preços — sem token admin)
+// ================================================================
+if ($acao === 'get_store_config'){
+    try {
+        $publicKeys = [
+            'nome_plano_basico','nome_plano_profissional','nome_plano_agencia','nome_plano_enterprise',
+            'desc_plano_basico','desc_plano_profissional','desc_plano_agencia','desc_plano_enterprise',
+            'valor_basico','valor_profissional','valor_agencia','valor_enterprise',
+            'creditos_basico','creditos_profissional','creditos_agencia','creditos_enterprise',
+            'site_nome','site_url','credito_gratis_ativo','credito_gratis_qtd'
+        ];
+        $placeholders = implode(',', array_fill(0, count($publicKeys), '?'));
+        $stmt = $pdo->prepare("SELECT chave, valor FROM configuracoes WHERE chave IN ($placeholders)");
+        $stmt->execute($publicKeys);
+        $configs = [];
+        while ($row = $stmt->fetch()) {
+            $configs[$row['chave']] = $row['valor'];
+        }
+        jsonResponse(['status' => 'sucesso', 'configs' => $configs]);
+    } catch(Exception $e){
+        jsonResponse(['status' => 'erro', 'msg' => 'Erro ao buscar configurações da loja']);
+    }
 }
 
 // ================================================================
@@ -1163,6 +1201,491 @@ if ($acao === 'ai_parse_resume'){
     registrarLog($pdo, 'info', 'ai_parse_resume', "IA usada por $email", $user['id']);
 
     jsonResponse(['status' => 'sucesso', 'result' => $result]);
+}
+
+// ================================================================
+// VERIFICAR CREDENCIAIS / SYNC (verificar)
+// Alias de validar — usado pelo frontend para sincronizar créditos
+// ================================================================
+if ($acao === 'verificar'){
+    $email = sanitizeEmail($request['email'] ?? '');
+    $senha = $request['senha'] ?? '';
+
+    if (!$email || !$senha) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Credenciais inválidas.']);
+    }
+
+    try {
+        $stmt = $pdo->prepare("SELECT id, senha_hash, nome, cpf, creditos, plano, ativo FROM usuarios WHERE email = ?");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch();
+
+        if (!$user || !password_verify($senha, $user['senha_hash'])) {
+            jsonResponse(['status' => 'erro', 'msg' => 'E-mail ou senha incorretos.']);
+        }
+
+        if (!$user['ativo']) {
+            jsonResponse(['status' => 'erro', 'msg' => 'Conta desativada.']);
+        }
+
+        jsonResponse([
+            'status'   => 'sucesso',
+            'id'       => $user['id'],
+            'nome'     => $user['nome'],
+            'cpf'      => $user['cpf'],
+            'creditos' => $user['creditos'],
+            'plano'    => $user['plano']
+        ]);
+    } catch (Exception $e) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Erro interno ao verificar credenciais.']);
+    }
+}
+
+// ================================================================
+// CONSUMIR CRÉDITO (consumir)
+// Consome 1 crédito para download de PDF oficial
+// ================================================================
+if ($acao === 'consumir'){
+    $email = sanitizeEmail($request['email'] ?? '');
+    $senha = $request['senha'] ?? '';
+
+    if (!$email || !$senha) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Credenciais inválidas.']);
+    }
+
+    try {
+        $stmt = $pdo->prepare("SELECT id, senha_hash, creditos, ativo FROM usuarios WHERE email = ?");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch();
+
+        if (!$user || !password_verify($senha, $user['senha_hash'])) {
+            jsonResponse(['status' => 'erro', 'msg' => 'Credenciais inválidas.']);
+        }
+
+        if (!$user['ativo']) {
+            jsonResponse(['status' => 'erro', 'msg' => 'Conta desativada.']);
+        }
+
+        if ((int)$user['creditos'] <= 0) {
+            jsonResponse(['status' => 'erro', 'msg' => 'Sem créditos disponíveis. Adquira um plano na loja.']);
+        }
+
+        // Deduct 1 credit
+        $pdo->prepare("UPDATE usuarios SET creditos = creditos - 1 WHERE id = ? AND creditos > 0")->execute([$user['id']]);
+
+        // Record transaction
+        $ip = getClientIP();
+        $pdo->prepare(
+            "INSERT INTO transacoes (usuario_id, tipo, quantidade, descricao, ip, created_at) VALUES (?, 'consumo', -1, 'Download PDF oficial', ?, NOW())"
+        )->execute([$user['id'], $ip]);
+
+        // Get updated credit count
+        $stmtCred = $pdo->prepare("SELECT creditos FROM usuarios WHERE id = ?");
+        $stmtCred->execute([$user['id']]);
+        $newCredits = (int)$stmtCred->fetchColumn();
+
+        registrarLog($pdo, 'info', 'consumir', "Crédito consumido por $email", $user['id']);
+
+        jsonResponse([
+            'status'   => 'sucesso',
+            'creditos' => $newCredits,
+            'msg'      => 'Crédito consumido com sucesso!'
+        ]);
+    } catch (Exception $e) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Erro ao consumir crédito.']);
+    }
+}
+
+// ================================================================
+// GERAR PAGAMENTO (gerar_pagamento)
+// Cria pedido e retorna link de pagamento
+// ================================================================
+if ($acao === 'gerar_pagamento'){
+    $email = sanitizeEmail($request['email'] ?? '');
+    $senha = $request['senha'] ?? '';
+    $plano = trim($request['plano'] ?? '');
+
+    if (!$email || !$senha) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Faça login antes de comprar.']);
+    }
+
+    // Validate user
+    try {
+        $stmt = $pdo->prepare("SELECT id, senha_hash, ativo FROM usuarios WHERE email = ?");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch();
+
+        if (!$user || !password_verify($senha, $user['senha_hash'])) {
+            jsonResponse(['status' => 'erro', 'msg' => 'Credenciais inválidas.']);
+        }
+
+        if (!$user['ativo']) {
+            jsonResponse(['status' => 'erro', 'msg' => 'Conta desativada.']);
+        }
+    } catch (Exception $e) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Erro ao validar usuário.']);
+    }
+
+    // Load plan configs
+    $planosValidos = ['basico', 'profissional', 'agencia', 'enterprise'];
+    if (!in_array($plano, $planosValidos)) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Plano inválido.']);
+    }
+
+    try {
+        $cfgKeys = [
+            "valor_$plano", "creditos_$plano", "nome_plano_$plano",
+            "mp_link_$plano", "mp_access_token", "gateway_ativo", "site_url"
+        ];
+        $placeholders = implode(',', array_fill(0, count($cfgKeys), '?'));
+        $stmtCfg = $pdo->prepare("SELECT chave, valor FROM configuracoes WHERE chave IN ($placeholders)");
+        $stmtCfg->execute($cfgKeys);
+        $cfg = [];
+        while ($row = $stmtCfg->fetch()) {
+            $cfg[$row['chave']] = $row['valor'];
+        }
+    } catch (Exception $e) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Erro ao carregar configuração de pagamento.']);
+    }
+
+    $valor = (float)($cfg["valor_$plano"] ?? 0);
+    $creditos = (int)($cfg["creditos_$plano"] ?? 0);
+    $nomePlano = $cfg["nome_plano_$plano"] ?? ucfirst($plano);
+
+    if ($valor <= 0 || $creditos <= 0) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Plano não configurado. Contate o suporte.']);
+    }
+
+    // Create pedido record
+    $ip = getClientIP();
+    try {
+        $stmtPed = $pdo->prepare(
+            "INSERT INTO pedidos (usuario_id, email, plano, creditos, valor, status, gateway, ip, created_at) VALUES (?, ?, ?, ?, ?, 'pendente', 'mercadopago', ?, NOW())"
+        );
+        $stmtPed->execute([$user['id'], $email, $plano, $creditos, $valor, $ip]);
+        $pedidoId = (int)$pdo->lastInsertId();
+    } catch (Exception $e) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Erro ao criar pedido.']);
+    }
+
+    // Check if there's a simple Mercado Pago link configured
+    $mpLink = trim($cfg["mp_link_$plano"] ?? '');
+    if ($mpLink) {
+        registrarLog($pdo, 'info', 'gerar_pagamento', "Pedido #$pedidoId criado (link direto, plano $plano)", $user['id']);
+        jsonResponse([
+            'status'    => 'sucesso',
+            'link'      => $mpLink,
+            'pedido_id' => $pedidoId
+        ]);
+    }
+
+    // Try Mercado Pago API if access_token is configured
+    $mpToken = trim($cfg['mp_access_token'] ?? '');
+    if ($mpToken) {
+        $siteUrl = trim($cfg['site_url'] ?? '');
+        $preference = [
+            'items' => [[
+                'title'       => "KONEX - Plano $nomePlano ({$creditos} créditos)",
+                'quantity'    => 1,
+                'unit_price'  => $valor,
+                'currency_id' => 'BRL'
+            ]],
+            'external_reference' => "KNX_$pedidoId",
+            'payment_methods' => [
+                'installments' => 1
+            ]
+        ];
+
+        if ($siteUrl) {
+            $preference['back_urls'] = [
+                'success' => $siteUrl,
+                'failure' => $siteUrl,
+                'pending' => $siteUrl
+            ];
+            $preference['auto_return'] = 'approved';
+            $preference['notification_url'] = rtrim($siteUrl, '/') . '/api.php?acao=webhook_mp';
+        }
+
+        $ch = curl_init('https://api.mercadopago.com/checkout/preferences');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => json_encode($preference),
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $mpToken
+            ],
+            CURLOPT_TIMEOUT        => 30,
+            CURLOPT_SSL_VERIFYPEER => true
+        ]);
+
+        $mpResponse = curl_exec($ch);
+        $mpHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlErr = curl_error($ch);
+        curl_close($ch);
+
+        if ($curlErr) {
+            registrarLog($pdo, 'error', 'gerar_pagamento', "cURL error: $curlErr", $user['id']);
+            jsonResponse(['status' => 'erro', 'msg' => 'Erro ao conectar com o gateway de pagamento.']);
+        }
+
+        $mpData = json_decode($mpResponse, true);
+
+        if ($mpHttpCode >= 200 && $mpHttpCode < 300 && !empty($mpData['init_point'])) {
+            // Update pedido with gateway info
+            try {
+                $pdo->prepare("UPDATE pedidos SET gateway_id = ?, gateway_json = ? WHERE id = ?")
+                    ->execute([$mpData['id'] ?? '', json_encode($mpData), $pedidoId]);
+            } catch (Exception $e) {}
+
+            registrarLog($pdo, 'info', 'gerar_pagamento', "Pedido #$pedidoId criado (API MP, plano $plano)", $user['id']);
+
+            // Check for PIX data
+            if (!empty($mpData['point_of_interaction']['transaction_data']['qr_code'])) {
+                $pixCode = $mpData['point_of_interaction']['transaction_data']['qr_code'];
+                $pixQr = $mpData['point_of_interaction']['transaction_data']['qr_code_base64'] ?? '';
+                jsonResponse([
+                    'status'         => 'sucesso',
+                    'pedido_id'      => $pedidoId,
+                    'pix_copia_cola' => $pixCode,
+                    'pix_qr_base64'  => $pixQr,
+                    'link'           => $mpData['init_point']
+                ]);
+            }
+
+            jsonResponse([
+                'status'    => 'sucesso',
+                'link'      => $mpData['init_point'],
+                'pedido_id' => $pedidoId
+            ]);
+        } else {
+            registrarLog($pdo, 'error', 'gerar_pagamento', "MP HTTP $mpHttpCode: $mpResponse", $user['id']);
+            jsonResponse(['status' => 'erro', 'msg' => 'Erro ao gerar link de pagamento. Tente novamente.']);
+        }
+    }
+
+    // No payment gateway configured
+    jsonResponse(['status' => 'erro', 'msg' => 'Nenhum gateway de pagamento configurado. Contate o suporte.']);
+}
+
+// ================================================================
+// VERIFICAR PAGAMENTO (verificar_pagamento)
+// Polling do status de um pedido
+// ================================================================
+if ($acao === 'verificar_pagamento'){
+    $pedidoId = (int)($request['pedido_id'] ?? 0);
+
+    if ($pedidoId <= 0) {
+        jsonResponse(['status' => 'erro', 'msg' => 'ID de pedido inválido.']);
+    }
+
+    try {
+        $stmt = $pdo->prepare("SELECT status FROM pedidos WHERE id = ?");
+        $stmt->execute([$pedidoId]);
+        $pedido = $stmt->fetch();
+
+        if (!$pedido) {
+            jsonResponse(['status' => 'nao_encontrado']);
+        }
+
+        jsonResponse(['status' => $pedido['status'] === 'aprovado' ? 'aprovado' : 'pendente']);
+    } catch (Exception $e) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Erro ao verificar pagamento.']);
+    }
+}
+
+// ================================================================
+// IA — SUGESTÕES DE MELHORIA (ai_suggest_improvements)
+// ================================================================
+if ($acao === 'ai_suggest_improvements'){
+    $email = sanitizeEmail($request['email'] ?? '');
+    $senha = $request['senha'] ?? '';
+
+    if (!$email || !$senha) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Faça login para usar a IA.']);
+    }
+
+    // Validate user
+    try {
+        $stmt = $pdo->prepare("SELECT id, senha_hash, ativo FROM usuarios WHERE email = ?");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch();
+
+        if (!$user || !password_verify($senha, $user['senha_hash'])) {
+            jsonResponse(['status' => 'erro', 'msg' => 'Credenciais inválidas.']);
+        }
+
+        if (!$user['ativo']) {
+            jsonResponse(['status' => 'erro', 'msg' => 'Conta desativada.']);
+        }
+    } catch (Exception $e) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Erro ao validar usuário.']);
+    }
+
+    $texto = trim($request['texto'] ?? '');
+    $tipo  = trim($request['tipo'] ?? 'resumo');
+
+    if (!$texto) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Texto vazio.']);
+    }
+
+    // Load LLM config
+    try {
+        $cfgKeys = ['llm_enabled', 'llm_provider', 'llm_model', 'llm_endpoint', 'llm_api_key'];
+        $placeholders = implode(',', array_fill(0, count($cfgKeys), '?'));
+        $stmtCfg = $pdo->prepare("SELECT chave, valor FROM configuracoes WHERE chave IN ($placeholders)");
+        $stmtCfg->execute($cfgKeys);
+        $llmCfg = [];
+        while ($row = $stmtCfg->fetch()) {
+            $llmCfg[$row['chave']] = $row['valor'];
+        }
+    } catch (Exception $e) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Erro ao carregar configuração da IA.']);
+    }
+
+    if (empty($llmCfg['llm_enabled']) || $llmCfg['llm_enabled'] !== '1') {
+        jsonResponse(['status' => 'erro', 'msg' => 'IA desativada.']);
+    }
+
+    $apiKey = $llmCfg['llm_api_key'] ?? '';
+    if (!$apiKey) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Chave de API da IA não configurada.']);
+    }
+
+    $endpoint = $llmCfg['llm_endpoint'] ?? 'https://api.openai.com/v1/chat/completions';
+    $model    = $llmCfg['llm_model'] ?? 'gpt-4o-mini';
+    $provider = $llmCfg['llm_provider'] ?? 'openai';
+
+    $systemPrompt = 'Você é um consultor de carreira. Analise o texto de currículo fornecido e retorne APENAS um JSON válido (sem markdown) com a estrutura: {"sugestoes":["sugestão 1","sugestão 2","sugestão 3"]} contendo 3-5 sugestões práticas de melhoria.';
+
+    $messages = [
+        ['role' => 'system', 'content' => $systemPrompt],
+        ['role' => 'user',   'content' => "Analise este $tipo de currículo e sugira melhorias:\n\n$texto"]
+    ];
+
+    $payload = json_encode([
+        'model'       => $model,
+        'messages'    => $messages,
+        'temperature' => 0.4,
+        'max_tokens'  => 1000
+    ], JSON_UNESCAPED_UNICODE);
+
+    $headers = [
+        'Content-Type: application/json',
+        'Authorization: Bearer ' . $apiKey
+    ];
+
+    if ($provider === 'gemini') {
+        $endpoint = str_contains($endpoint, '?') ? $endpoint : $endpoint . '?key=' . $apiKey;
+        $headers = ['Content-Type: application/json'];
+    }
+
+    $ch = curl_init($endpoint);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $payload,
+        CURLOPT_HTTPHEADER     => $headers,
+        CURLOPT_TIMEOUT        => 30,
+        CURLOPT_SSL_VERIFYPEER => true
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode !== 200 || !$response) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Erro na API da IA.']);
+    }
+
+    $decoded = json_decode($response, true);
+    $content = $decoded['choices'][0]['message']['content'] ?? '';
+
+    if (!$content) {
+        jsonResponse(['status' => 'erro', 'msg' => 'IA não retornou conteúdo.']);
+    }
+
+    $content = preg_replace('/^```json\s*/i', '', trim($content));
+    $content = preg_replace('/\s*```$/i', '', $content);
+
+    $result = json_decode($content, true);
+    if (!$result || !isset($result['sugestoes'])) {
+        jsonResponse(['status' => 'erro', 'msg' => 'Formato de resposta inválido.']);
+    }
+
+    jsonResponse(['status' => 'sucesso', 'result' => $result]);
+}
+
+// ================================================================
+// WEBHOOK MERCADO PAGO (webhook_mp)
+// Recebe notificações de pagamento do Mercado Pago
+// ================================================================
+if ($acao === 'webhook_mp'){
+    $whData = json_decode(file_get_contents('php://input'), true) ?: [];
+
+    $topic = $_GET['topic'] ?? $_GET['type'] ?? $whData['action'] ?? $whData['type'] ?? '';
+    $paymentId = $_GET['id'] ?? $whData['data']['id'] ?? '';
+
+    // Sanitizar $paymentId — deve ser apenas numérico
+    $paymentId = preg_replace('/[^0-9]/', '', (string)$paymentId);
+
+    if (strpos($topic, 'payment') !== false && $paymentId) {
+        $mpToken = getConfig('mp_access_token', '', $pdo);
+        if ($mpToken) {
+            $ch = curl_init("https://api.mercadopago.com/v1/payments/$paymentId");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $mpToken]);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            $payment = json_decode(curl_exec($ch), true);
+            curl_close($ch);
+
+            if (isset($payment['status'])) {
+                $status = $payment['status'];
+                $liberarPending = getConfig('mp_liberar_pending', '0', $pdo);
+
+                if ($status === 'approved' || ($liberarPending == '1' && ($status === 'pending' || $status === 'in_process'))) {
+
+                    $pedidoIdRaw = $payment['external_reference'] ?? '';
+                    $pedidoIdWh = (int) str_replace("KNX_", "", $pedidoIdRaw);
+
+                    if ($pedidoIdWh > 0) {
+                        try {
+                            $stmt = $pdo->prepare("SELECT * FROM pedidos WHERE id = ? AND status != 'aprovado'");
+                            $stmt->execute([$pedidoIdWh]);
+                            $pedido = $stmt->fetch();
+
+                            if ($pedido) {
+                                $pdo->prepare("UPDATE pedidos SET status = 'aprovado', gateway_id = ? WHERE id = ?")
+                                    ->execute([$paymentId, $pedidoIdWh]);
+                                $pdo->prepare("UPDATE usuarios SET creditos = creditos + ? WHERE email = ?")
+                                    ->execute([$pedido['creditos'], $pedido['email']]);
+
+                                $stmtU = $pdo->prepare("SELECT id FROM usuarios WHERE email = ?");
+                                $stmtU->execute([$pedido['email']]);
+                                $uid = $stmtU->fetchColumn();
+
+                                if ($uid) {
+                                    try {
+                                        $pdo->prepare(
+                                            "INSERT INTO transacoes (usuario_id, tipo, quantidade, descricao, referencia, created_at) VALUES (?, 'compra', ?, ?, ?, NOW())"
+                                        )->execute([$uid, $pedido['creditos'], "Compra Webhook MP (Plano {$pedido['plano']})", $paymentId]);
+                                    } catch (Exception $e) {}
+                                }
+
+                                registrarLog($pdo, 'info', 'webhook_mp', "Pagamento aprovado pedido #$pedidoIdWh", $uid ?: null);
+                            }
+                        } catch (Exception $e) {
+                            registrarLog($pdo, 'error', 'webhook_mp', "Erro ao processar pedido #$pedidoIdWh: " . $e->getMessage());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    http_response_code(200);
+    echo "OK";
+    exit;
 }
 
 // ================================================================

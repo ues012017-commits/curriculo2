@@ -146,3 +146,27 @@ function limparSessoesExpiradas(PDO $pdo): void
         // silencioso
     }
 }
+
+/**
+ * Obtém uma configuração do banco (tabela `configuracoes`).
+ *
+ * @param PDO    $pdo      Conexão PDO (se null, tenta usar $GLOBALS['pdo'])
+ * @param string $chave    Chave da configuração
+ * @param string $default  Valor padrão caso não exista
+ * @return string
+ */
+function getConfig(string $chave, string $default = '', ?PDO $pdo = null): string
+{
+    if ($pdo === null) {
+        $pdo = $GLOBALS['pdo'] ?? null;
+    }
+    if (!$pdo) return $default;
+    try {
+        $stmt = $pdo->prepare("SELECT valor FROM configuracoes WHERE chave = ?");
+        $stmt->execute([$chave]);
+        $val = $stmt->fetchColumn();
+        return $val !== false ? (string)$val : $default;
+    } catch (Exception $e) {
+        return $default;
+    }
+}
