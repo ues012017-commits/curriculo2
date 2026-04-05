@@ -60,8 +60,64 @@ $fullHtml = '<!DOCTYPE html>
 <style>
   :root { ' . $cssVarStr . ' }
   @page { size: A4; margin: 0; }
-  body { margin: 0; padding: 0; font-family: ' . htmlspecialchars($cssVars['--user-font'] ?? "'Inter', sans-serif", ENT_QUOTES, 'UTF-8') . '; }
-  .cv-content { width: 210mm; min-height: 297mm; box-sizing: border-box; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { margin: 0; padding: 0; background: #ffffff; color: #1e293b; font-family: ' . htmlspecialchars($cssVars['--user-font'] ?? "'Inter', sans-serif", ENT_QUOTES, 'UTF-8') . '; }
+
+  /* CV Content Reset */
+  .cv-content { display: block; width: 210mm; min-height: 297mm; box-sizing: border-box; font-size: calc(11px * var(--user-scale, 1)); line-height: 1.5; font-family: var(--user-font); padding: var(--cv-margin, 40px); background: #ffffff; color: #1e293b; word-wrap: break-word; overflow-wrap: break-word; word-break: break-word; }
+  .cv-content * { box-sizing: border-box; max-width: 100%; }
+  .palette-custom { --prim: var(--user-color); --sec: var(--secondary); --txt-h: var(--user-color); --txt-main: var(--user-font-color); }
+
+  /* Typography */
+  .cv-name { font-size: calc(2.2em * var(--title-scale, 1)); font-weight: 900; line-height: 1.1; margin-bottom: .2em; text-transform: uppercase; color: var(--txt-h); }
+  .cv-role { font-size: calc(1.3em * var(--title-scale, 1)); font-weight: 600; color: var(--prim); margin-bottom: .8em; text-transform: uppercase; letter-spacing: 1px; }
+  .cv-contact { font-size: calc(0.9em * var(--text-scale, 1)); margin-bottom: .5em; color: var(--txt-main); }
+  .item-box { margin-bottom: var(--cv-spacing, 15px); }
+  .item-title { font-weight: 700; font-size: calc(1.1em * var(--title-scale, 1)); color: var(--txt-main); }
+  .item-sub { font-size: calc(0.9em * var(--text-scale, 1)); font-style: italic; color: var(--txt-main); opacity: .8; margin-top: .2em; }
+  .item-meta { font-size: calc(0.85em * var(--text-scale, 1)); color: var(--txt-main); opacity: .75; margin-top: .2em; }
+  .item-desc { margin-top: .3em; font-size: calc(1em * var(--text-scale, 1)); white-space: pre-wrap; text-align: justify; color: var(--txt-main); }
+  [class*="var-"] .section-title { font-size: calc(1.2em * var(--title-scale, 1)); font-weight: 800; text-transform: uppercase; color: var(--prim); margin-top: calc(var(--cv-spacing, 15px) * 1.5); margin-bottom: calc(var(--cv-spacing, 15px) * 0.8); }
+
+  /* Section Title Styles */
+  .var-1 .section-title { border-bottom: 2px solid var(--prim); padding-bottom: 5px; }
+  .var-2 .section-title { background: var(--prim); color: #fff; padding: 5px 10px; border-radius: 5px; display: inline-block; }
+  .var-3 .section-title { text-align: center; }
+  .var-4 .section-title { border-left: 4px solid var(--prim); padding-left: 10px; }
+  .var-5 .section-title { border-top: 1px solid var(--prim); border-bottom: 1px solid var(--prim); padding: 5px 0; text-align: center; }
+  .var-6 .section-title { font-style: italic; border-bottom: 1px dashed var(--prim); }
+  .var-7 .section-title { text-decoration: underline; text-decoration-color: var(--prim); text-decoration-thickness: 3px; }
+  .var-8 .section-title { background: linear-gradient(90deg, var(--prim), transparent); color: #fff; padding: 5px 10px; display: inline-block; }
+  .var-9 .section-title { letter-spacing: 3px; border-bottom: 1px solid rgba(0,0,0,0.1); }
+
+  /* Layout System */
+  .layout-classic { padding: var(--cv-margin, 40px); }
+  .layout-side-left, .layout-side-right { display: flex; flex-direction: row; width: 100%; min-height: 297mm; padding: 0 !important; }
+  .layout-side-left .sidebar-area { width: 32%; flex-shrink: 0; background: var(--prim); color: var(--sidebar-text-color, #ffffff); padding: var(--cv-margin, 40px); text-align: center; }
+  .layout-side-left .main-area { width: 68%; flex: 1; padding: var(--cv-margin, 40px); color: var(--txt-main); min-width: 0; }
+  .layout-side-right .sidebar-area { width: 32%; flex-shrink: 0; background: var(--sec); padding: var(--cv-margin, 40px); border-left: 2px solid var(--prim); }
+  .layout-side-right .main-area { width: 68%; flex: 1; padding: var(--cv-margin, 40px); color: var(--txt-main); min-width: 0; }
+  .layout-artistic { display: flex; flex-direction: row; width: 100%; min-height: 297mm; padding: 0 !important; }
+  .layout-artistic .side-strip { width: 60px; flex-shrink: 0; background: var(--prim); }
+  .layout-artistic .main-body { padding: var(--cv-margin, 40px); flex: 1; min-width: 0; }
+  .layout-artistic .header-art { padding-bottom: 20px; margin-bottom: var(--cv-spacing, 15px); }
+  .layout-artistic .big-letter { font-size: 6em; line-height: 0.8; font-weight: 900; color: var(--prim); margin-right: 10px; }
+  .layout-geo { padding: 0 !important; }
+  .layout-geo .header-bg { background: var(--prim); height: auto; min-height: 180px; clip-path: polygon(0 0, 100% 0, 100% 85%, 0 100%); color: var(--sidebar-text-color, #ffffff); padding: var(--cv-margin, 40px); padding-bottom: calc(var(--cv-margin, 40px) + 20px); }
+  .layout-geo .main-content { padding: 0 var(--cv-margin, 40px) var(--cv-margin, 40px) var(--cv-margin, 40px); margin-top: 10px; }
+  .layout-minimal { padding: calc(var(--cv-margin, 40px) * 1.5); text-align: center; }
+  .layout-boxed { padding: calc(var(--cv-margin, 40px) * 0.7); background: #fff; }
+  .layout-boxed .inner-border { border: 2px solid var(--prim); padding: var(--cv-margin, 40px); height: 100%; border-radius: 8px; }
+
+  /* Sidebar text colors */
+  .layout-geo .header-bg .cv-name, .layout-geo .header-bg .cv-role, .layout-geo .header-bg .cv-contact,
+  .layout-side-left .sidebar-area .cv-name, .layout-side-left .sidebar-area .cv-role, .layout-side-left .sidebar-area .cv-contact,
+  .layout-side-left .sidebar-area .section-title, .layout-side-left .sidebar-area .item-desc, .layout-side-left .sidebar-area .item-title, .layout-side-left .sidebar-area .item-sub,
+  .layout-side-right .sidebar-area .cv-name, .layout-side-right .sidebar-area .cv-role, .layout-side-right .sidebar-area .cv-contact,
+  .layout-side-right .sidebar-area .section-title, .layout-side-right .sidebar-area .item-desc, .layout-side-right .sidebar-area .item-title, .layout-side-right .sidebar-area .item-sub { color: var(--sidebar-text-color, #ffffff) !important; }
+
+  .cv-photo { object-fit: cover; }
+  img { max-width: 100%; height: auto; }
 </style>
 </head>
 <body>
