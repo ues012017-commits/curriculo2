@@ -598,13 +598,24 @@ input[type="range"]::-webkit-slider-thumb {
 .kc-cut-blank-label{ background:rgba(15,23,42,.75); color:rgba(255,255,255,.55); padding:5px 14px; border-radius:8px; font-size:11px; font-weight:700; }
 #paperZoomWrap { transform-origin: top center; transition: transform 0.1s; position: relative; display: inline-block; text-align: left; margin: 0 auto; }
 
+/* ── CV PREVIEW ISOLATION RESET ── */
+/* Strict CSS reset to prevent dark UI styles from leaking into the resume preview */
+.page-box, #hiddenPaper {
+  background: #ffffff !important;
+  color: #1e293b !important;
+  font-family: var(--user-font, 'Inter', sans-serif);
+  -webkit-text-fill-color: initial;
+  text-decoration: none;
+}
+
 /* ── A4 PAPER CLASSES ── */
-.cv-content { display: block; width: 100%; height: max-content; min-height: 1123px; font-size: calc(11px * var(--user-scale)); line-height: 1.5; font-family: var(--user-font); padding: var(--cv-margin); box-sizing: border-box !important; word-wrap: break-word !important; overflow-wrap: break-word !important; word-break: break-word !important;}
+.cv-content { display: block; width: 100%; height: max-content; min-height: 1123px; font-size: calc(11px * var(--user-scale)); line-height: 1.5; font-family: var(--user-font); padding: var(--cv-margin); box-sizing: border-box !important; word-wrap: break-word !important; overflow-wrap: break-word !important; word-break: break-word !important; background: #ffffff; color: #1e293b;}
 .cv-content * { box-sizing: border-box !important; max-width: 100%; }
 
 .pos-right.layout-classic .header, .pos-right.layout-geo .header-bg, .pos-right.layout-boxed .header, .pos-right.layout-minimal .header { flex-direction: row-reverse !important; text-align: right !important; }
 .pos-right.layout-artistic .header-art { flex-direction: row-reverse !important; text-align: right !important; }
-.palette-custom { --prim: var(--user-color); --sec: var(--secondary); --txt-h: var(--user-color); --txt-main: var(--user-font-color); }
+/* palette-custom with higher specificity to always override theme classes */
+.cv-content.palette-custom { --prim: var(--user-color); --sec: var(--secondary); --txt-h: var(--user-color); --txt-main: var(--user-font-color); }
 .cv-name { font-size:calc(2.2em * var(--title-scale)); font-weight:900; line-height:1.1; margin-bottom:.2em; text-transform:uppercase; color:var(--txt-h); }
 .cv-role { font-size:calc(1.3em * var(--title-scale)); font-weight:600; color:var(--prim); margin-bottom:.8em; text-transform:uppercase; letter-spacing:1px; }
 .cv-contact { font-size:calc(0.9em * var(--text-scale)); margin-bottom:.5em; color:var(--txt-main); }
@@ -3313,16 +3324,20 @@ async function exportPDFViaBackend() {
 
     // Collect CSS variables as inline styles context
     const computedStyle = getComputedStyle(document.documentElement);
+    // Also read resolved --prim/--sec from the cv-content element (theme + palette-custom)
+    const cvEl = $('cvContentMaster');
+    const cvStyle = cvEl ? getComputedStyle(cvEl) : computedStyle;
     const cssVars = {
       '--user-font': computedStyle.getPropertyValue('--user-font').trim(),
       '--user-color': computedStyle.getPropertyValue('--user-color').trim(),
       '--secondary': computedStyle.getPropertyValue('--secondary').trim(),
       '--user-font-color': computedStyle.getPropertyValue('--user-font-color').trim(),
-      '--sidebar-text-color': computedStyle.getPropertyValue('--sidebar-text-color').trim(),
+      '--sidebar-text-color': cvStyle.getPropertyValue('--sidebar-text-color').trim(),
       '--cv-margin': computedStyle.getPropertyValue('--cv-margin').trim(),
       '--cv-spacing': computedStyle.getPropertyValue('--cv-spacing').trim(),
       '--title-scale': computedStyle.getPropertyValue('--title-scale').trim(),
       '--text-scale': computedStyle.getPropertyValue('--text-scale').trim(),
+      '--user-scale': computedStyle.getPropertyValue('--user-scale').trim() || '1',
     };
 
     const response = await fetch('gerar_pdf.php', {
